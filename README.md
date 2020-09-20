@@ -5,6 +5,8 @@ Put this combination into your ~/.forward or ~/.qmail
 ```
 | textplain.rb
 ```
+It extracts text part of message and convert them to iso-2022-jp,
+traditional encoding system in Japan.
 ## Prefer localtime in Date: header
 Some MUAs like Rainloop add GMT date header that cannot be
 problem on most MUA, but causes inconvenience to GMT unaware MUA.
