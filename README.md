@@ -2,6 +2,7 @@
 Filters for traditional MUA and command line lovers
 ## Split off rich HTML part
 *Assuming you using postfix/qmail email extensional address*
+
 Put this combination into your ~/.forward or ~/.qmail
 ```
 # Postfix recipient_delimiter = +
