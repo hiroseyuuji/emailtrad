@@ -1,0 +1,122 @@
+#!/usr/local/bin/zsh -f
+setopt multios
+dotqm=${DOTQMAIL:-.qmail}
+DQHOME=${DQHOME:-$HOME}
+cd $DQHOME
+DEFAULTSPOOL=./Maildir/
+PATH=${PATH}:/usr/sbin:/usr/lib; export PATH
+if [ -s $DQHOME/.dotqmailexts ]; then
+  while IFS=: read ext home; do
+    home=${home/\~\//$HOME/}
+    home=${(e)home}
+    case $EXTENSION in
+      $ext|${ext}-*)
+	if [ -d $home ]; then
+	  DQHOME=`(cd $home; pwd)`; break
+	fi ;;
+    esac
+  done < $DQHOME/.dotqmailexts
+fi
+DQBASE=$DQHOME/${dotqm}-
+cd $DQHOME
+
+export EXT=${EXTENSION//+/-}
+export EXT2=${${(M)EXT%%-*}/-/}
+export EXT3=${${(M)EXT2%%-*}/-/}
+export EXT4=${${(M)EXT3%%-*}/-/}
+# $HOST manipulation is not symmetrical with $EXT
+# If $HOSTn has no dots, $HOST(n+1) has same name as $HOSTn
+export HOST=$DOMAIN
+export HOST2=${HOST%.*}
+export HOST3=${HOST2%.*}
+export HOST4=${HOST3%.*}
+
+fdq=''
+x=${(L)EXT//./:}
+dq=${DQBASE}$x
+function maildirmake() {
+  mkdir -m 700 $1 && mkdir -m 700 $1/{new,cur,tmp}
+}
+[[ -n "$DEBUG" ]] && echo PPP:dq=$dq >> $HOME/ddebug
+
+if [[ $USER == $LOCAL ]]; then
+  fdq=$DQHOME/${1:-${dotqm}}
+  [[ -s $fdq ]] || echo "$DEFAULTSPOOL" > $fdq
+elif [[ -s $dq ]]; then
+  fdq=$dq
+else
+  while [[ x"$x" != x"" ]]; do
+    x=${${(M)x##*-}%-}
+    dq=${DQBASE}$x${x:+-}default
+    if [[ -s $dq ]]; then
+      fdq=$dq; break
+    fi
+  done
+  dq=${DQBASE}$x${x:+-}default
+  if [[ -s $dq ]]; then
+    fdq=$dq
+  fi
+fi
+function maildir() {
+  [[ -d $1 ]] || maildirmake $1
+  dir=$1/new
+  host=`hostname`
+  zmodload zsh/datetime || exit 111
+  (echo -n "$RPLINE"; cat) > $dir/$EPOCHSECONDS.$$.$host
+}
+function mbox() {
+  # no locking! do not use poor mbox!
+  (echo -n $UFLINE
+   echo -n $RPLINE
+   cat
+   echo) >> $1
+}
+
+flush() {
+  [[ -n "$DEBUG" ]] && echo out=$out >> $HOME/ddebug
+  ###echo found: $fdq, default: $DEFAULT, out=$out
+  [[ -n "$DEBUG" ]] && env > $DQHOME/ENV
+  #eval "cat ${out:->/dev/null}"
+  eval "echo '$body' | sed 1,2d ${out:->/dev/null}"
+  out=""
+}
+[[ -n "$DEBUG" ]] && echo fdq=$fdq >> $HOME/ddebug
+
+if [[ -n "$fdq" && -s $fdq ]]; then
+  default=${EXT/$x/}
+  [[ x"$default" != x"" ]] && export DEFAULT=${default#-}
+  IFS= body=`cat`
+  export UFLINE="${${(@f)body}[1]}"$'\n'
+  export RPLINE="${${(@f)body}[2]}"$'\n'
+  if [[ -e ${fdq}-owner ]]; then
+    # If .qmail-ext-owner exists, use local-owner@domain. (dot-qmail(5))
+    newsender="-f ${LOCAL}-owner@$DOMAIN "
+    echo newsender=$newsender >> $HOME/ddebug
+  fi
+  cat $fdq | while read -r line; do
+    case "$line" in
+      \#*) ;;
+      \|*)
+	# A program line should executed sequentially and should be
+	# ceased further instructions when program exits at 99.
+	[ "$out" ] && flush
+	echo "$body" | eval "${line#\|}"
+	[ $? = 99 ] && exit 0
+	;;
+      # Other instructions should be processed simultaneously.
+      .*/|/*/)
+        out="$out > >(maildir $line)" ;;
+      .*|/*)
+        out="$out > >(mbox $line)" ;;
+      *)
+        out="$out > >(sendmail ${newsender}-- ${line#\&})" ;;
+    esac
+    ec=$?
+    [[ -n "$DEBUG" ]] && echo "$ec by [$line]" >> $HOME/ddebug
+  done
+  flush
+  exit 0
+else
+  # not found
+  exit 111
+fi
