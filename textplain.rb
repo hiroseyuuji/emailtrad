@@ -1,8 +1,8 @@
 #!/usr/bin/env ruby
 # coding: binary
 # Extract message body from RFC5322 stream as text/plain charset=iso-2022-jp.
-# (C)2015 by HIROSE Yuuji [yuuji<at>gentei.org]
-# Last modified Sun Sep 20 10:50:25 2020 on firestorm
+# (C)2015,2020 by HIROSE Yuuji [yuuji<at>gentei.org]
+# Last modified Sun Sep 20 11:25:30 2020 on firestorm
 require 'nkf'
 require 'kconv'
 require 'base64'
@@ -17,7 +17,7 @@ def catTextPlainHeader(body)
   # print NKF::nkf('-jM', header)
   print header
   print "Content-type: text/plain; charset=iso-2022-jp\n"
-  print "X-Filtered: $HGid: textplain.rb,v 1031:f89b6f857afa 2020-09-20 10:51 +0859 yuuji $\n\n"
+  print "X-Filtered: $HGid: textplain.rb,v 1033:01356070184c 2020-09-20 11:25 +0859 yuuji $\n\n"
 end
 def catbody(body)
   header=body.split(/^$/)[0]
