@@ -1,2 +1,2 @@
 # emailtrad
-Filters for traditional MUA
+Filters for traditional MUA and command line lovers
